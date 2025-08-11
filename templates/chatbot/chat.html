@@ -328,6 +328,16 @@
             // Show loading
             showLoading(true);
             
+            // Prepare request data
+            const requestData = {
+                message: message,
+                session_id: currentSessionId
+            };
+            
+            // Debug logging
+            console.log('Sending request data:', requestData);
+            console.log('CSRF Token:', getCookie('csrftoken'));
+            
             // Send to API
             fetch('/api/chat/', {
                 method: 'POST',
@@ -335,14 +345,22 @@
                     'Content-Type': 'application/json',
                     'X-CSRFToken': getCookie('csrftoken')
                 },
-                body: JSON.stringify({
-                    message: message,
-                    session_id: currentSessionId
-                })
+                body: JSON.stringify(requestData)
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 showLoading(false);
+                console.log('Response data:', data);
                 
                 if (data.session_id) {
                     currentSessionId = data.session_id;
@@ -360,7 +378,7 @@
             .catch(error => {
                 showLoading(false);
                 console.error('Error:', error);
-                addMessage('assistant', 'Sorry, there was an error processing your request.');
+                addMessage('assistant', `Error: ${error.message}`);
             });
         }
 

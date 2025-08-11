@@ -24,10 +24,34 @@ def chat_interface(request):
 @csrf_exempt
 def chat_api(request):
     """API endpoint for chat interactions"""
+    # Debug logging
+    print(f"Request method: {request.method}")
+    print(f"Request data: {request.data}")
+    print(f"Request headers: {request.headers}")
+    
+    # Check if request has data
+    if not request.data:
+        return Response({
+            'error': 'No data provided',
+            'detail': 'Request body is empty'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
     serializer = ChatRequestSerializer(data=request.data)
-    if serializer.is_valid():
+    
+    # Debug serializer validation
+    if not serializer.is_valid():
+        print(f"Serializer errors: {serializer.errors}")
+        return Response({
+            'error': 'Validation failed',
+            'detail': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
         message = serializer.validated_data['message']
         session_id = serializer.validated_data.get('session_id')
+        
+        print(f"Processing message: {message}")
+        print(f"Session ID: {session_id}")
         
         # Create or get session
         if not session_id:
@@ -75,9 +99,15 @@ def chat_api(request):
             'session_id': session_id
         }
         
+        print(f"Successfully processed request. Response: {response_data}")
         return Response(response_data, status=status.HTTP_200_OK)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    except Exception as e:
+        print(f"Error processing chat request: {str(e)}")
+        return Response({
+            'error': 'Internal server error',
+            'detail': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -165,4 +195,15 @@ def download_data(request):
 @api_view(['GET'])
 def health_check(request):
     """Health check endpoint"""
-    return Response({'status': 'healthy'}, status=status.HTTP_200_OK) 
+    return Response({'status': 'healthy'}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def test_chat_api(request):
+    """Test endpoint for debugging chat API"""
+    return Response({
+        'message': 'Test successful',
+        'request_data': request.data,
+        'request_method': request.method,
+        'request_headers': dict(request.headers)
+    }, status=status.HTTP_200_OK) 

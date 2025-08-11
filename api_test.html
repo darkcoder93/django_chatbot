@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .result {
+            background: #e9ecef;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chat API Test</h1>
+    
+    <div class="test-section">
+        <h3>1. Health Check</h3>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <div id="health-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. Test Chat API (Simple)</h3>
+        <button onclick="testChatAPI()">Test Chat API</button>
+        <div id="chat-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. Test Chat API (With Message)</h3>
+        <input type="text" id="test-message" placeholder="Enter a test message" value="show me sales data">
+        <button onclick="testChatWithMessage()">Test Chat API with Message</button>
+        <div id="chat-message-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>4. Test CSRF Token</h3>
+        <button onclick="testCSRF()">Test CSRF Token</button>
+        <div id="csrf-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>5. Debug Info</h3>
+        <div id="debug-info" class="result"></div>
+    </div>
+
+    <script>
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Test health endpoint
+        async function testHealth() {
+            try {
+                const response = await fetch('/api/health/');
+                const data = await response.json();
+                document.getElementById('health-result').textContent = 
+                    `Status: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('health-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test chat API without message
+        async function testChatAPI() {
+            try {
+                const response = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                document.getElementById('chat-result').textContent = 
+                    `Status: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('chat-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test chat API with message
+        async function testChatWithMessage() {
+            try {
+                const message = document.getElementById('test-message').value;
+                const response = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+                const data = await response.json();
+                document.getElementById('chat-message-result').textContent = 
+                    `Status: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('chat-message-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test CSRF token
+        async function testCSRF() {
+            const csrfToken = getCookie('csrftoken');
+            document.getElementById('csrf-result').textContent = 
+                `CSRF Token: ${csrfToken || 'Not found'}\nCookie: ${document.cookie}`;
+        }
+        
+        // Show debug info
+        function showDebugInfo() {
+            const debugInfo = {
+                'User Agent': navigator.userAgent,
+                'Cookies': document.cookie,
+                'CSRF Token': getCookie('csrftoken'),
+                'Current URL': window.location.href,
+                'Timestamp': new Date().toISOString()
+            };
+            
+            document.getElementById('debug-info').textContent = 
+                JSON.stringify(debugInfo, null, 2);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            showDebugInfo();
+        });
+    </script>
+</body>
+</html>
