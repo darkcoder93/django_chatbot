@@ -176,6 +176,24 @@
             font-size: 3rem;
             margin-bottom: 15px;
         }
+        
+        .example-queries {
+            text-align: left;
+            margin-top: 20px;
+        }
+        
+        .query-example {
+            background: #f8f9fa;
+            border-left: 3px solid #007bff;
+            padding: 8px 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .query-example strong {
+            color: #007bff;
+        }
     </style>
 </head>
 <body>
@@ -191,8 +209,24 @@
                 <div class="empty-state">
                     <i class="fas fa-comments"></i>
                     <h5>Welcome to SQL Chatbot!</h5>
-                    <p>Ask me questions about your data and I'll generate SQL queries for you.</p>
-                    <p class="mb-0"><small>Try: "Show me all sales data" or "What are the top customers?"</small></p>
+                    <p>I'm a rule-based chatbot that can help you analyze business data! Try these example queries:</p>
+                    <div class="example-queries">
+                        <div class="query-example">
+                            <strong>💰 Sales & Revenue:</strong> "Show me sales data" or "What's our revenue?"
+                        </div>
+                        <div class="query-example">
+                            <strong>👥 Customers:</strong> "Who are our top customers?" or "Show customer insights"
+                        </div>
+                        <div class="query-example">
+                            <strong>📦 Products:</strong> "List all products" or "Show inventory"
+                        </div>
+                        <div class="query-example">
+                            <strong>📊 Analytics:</strong> "What are our best performing products?" or "Show regional analysis"
+                        </div>
+                        <div class="query-example">
+                            <strong>⚠️ Alerts:</strong> "What products are low in stock?" or "Show inventory alerts"
+                        </div>
+                    </div>
                 </div>
             </div>
             

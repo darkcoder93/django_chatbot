@@ -25,41 +25,78 @@ class SQLAgent:
         self.engine = None
         self._connect_to_db()
         
-        # Rule-based patterns for SQL generation
-        self.patterns = {
-            r'sales|revenue|income': {
-                'sql': 'SELECT product_name, quantity, price, date, region FROM sales_data ORDER BY date DESC',
-                'data_type': 'sales'
-            },
-            r'customer|client|buyer': {
-                'sql': 'SELECT customer_name, email, total_purchases, registration_date FROM customer_data ORDER BY total_purchases DESC',
-                'data_type': 'customer'
-            },
-            r'product|item|goods': {
-                'sql': 'SELECT product_name, category, price, stock_quantity FROM product_data ORDER BY price DESC',
-                'data_type': 'product'
-            },
-            r'transaction|order|purchase': {
+        # Rule-based patterns for SQL generation (ordered by specificity)
+        self.patterns = [
+            # 1. FINANCIAL SUMMARY (most specific - check first)
+            (r'\b(financial|finance|budget|cost|expense|spending)\b', {
+                'sql': 'SELECT SUM(quantity * price) as total_revenue, COUNT(*) as total_transactions, AVG(price) as average_price FROM sales_data',
+                'data_type': 'financial_summary',
+                'response': "Financial summary ready! Here's an overview of total revenue, transaction count, and average pricing."
+            }),
+            
+            # 2. TRANSACTION HISTORY
+            (r'\b(transaction|order|purchase|buy|sold|history|record)\b', {
                 'sql': 'SELECT t.id, c.customer_name, p.product_name, t.quantity, t.total_amount, t.transaction_date FROM transactions t JOIN customer_data c ON t.customer_id = c.id JOIN product_data p ON t.product_id = p.id ORDER BY t.transaction_date DESC',
-                'data_type': 'transaction'
-            },
-            r'top|highest|best|maximum': {
+                'data_type': 'transaction',
+                'response': "Transaction history retrieved! This shows all recent orders with customer details, products, quantities, and amounts."
+            }),
+            
+            # 3. PERFORMANCE ANALYTICS
+            (r'\b(top|highest|best|maximum|performance|analytics|analysis|trend|compare)\b', {
                 'sql': 'SELECT product_name, SUM(quantity) as total_sold FROM sales_data GROUP BY product_name ORDER BY total_sold DESC LIMIT 10',
-                'data_type': 'top_products'
-            },
-            r'region|area|location': {
+                'data_type': 'top_products',
+                'response': "Performance analytics ready! Here are our top-performing products ranked by total units sold."
+            }),
+            
+            # 4. REGIONAL ANALYSIS
+            (r'\b(region|area|location|geography|where|place|zone)\b', {
                 'sql': 'SELECT region, COUNT(*) as sales_count, SUM(quantity * price) as total_revenue FROM sales_data GROUP BY region ORDER BY total_revenue DESC',
-                'data_type': 'region_analysis'
-            },
-            r'date|time|period|month|year': {
+                'data_type': 'region_analysis',
+                'response': "Regional analysis complete! This shows sales performance across different regions with revenue breakdowns."
+            }),
+            
+            # 5. TIME-BASED INSIGHTS
+            (r'\b(date|time|period|month|year|when|trend|timeline|schedule)\b', {
                 'sql': 'SELECT DATE(date) as sale_date, COUNT(*) as daily_sales, SUM(quantity * price) as daily_revenue FROM sales_data GROUP BY DATE(date) ORDER BY sale_date DESC LIMIT 30',
-                'data_type': 'time_series'
-            },
-            r'stock|inventory|quantity': {
+                'data_type': 'time_series',
+                'response': "Time-based insights loaded! Here's a 30-day trend showing daily sales counts and revenue patterns."
+            }),
+            
+            # 6. INVENTORY ALERTS
+            (r'\b(low|out|restock|need)\b.*\b(stock|inventory|quantity)\b|\b(stock|inventory|quantity)\b.*\b(low|out|restock|need)\b', {
                 'sql': 'SELECT product_name, stock_quantity, category FROM product_data WHERE stock_quantity < 100 ORDER BY stock_quantity ASC',
-                'data_type': 'low_stock'
-            }
-        }
+                'data_type': 'low_stock',
+                'response': "Inventory alert! These products are running low on stock and may need restocking soon."
+            }),
+            
+            # 7. CATEGORY BREAKDOWN
+            (r'\b(category|type|group|classification|sort|organize|classify)\b', {
+                'sql': 'SELECT category, COUNT(*) as product_count, AVG(price) as avg_price, SUM(stock_quantity) as total_stock FROM product_data GROUP BY category ORDER BY product_count DESC',
+                'data_type': 'category_analysis',
+                'response': "Category breakdown complete! This shows product distribution across categories with average prices and stock levels."
+            }),
+            
+            # 8. CUSTOMER INSIGHTS
+            (r'\b(customer|client|buyer|user|who|people|person)\b', {
+                'sql': 'SELECT customer_name, email, total_purchases, registration_date FROM customer_data ORDER BY total_purchases DESC',
+                'data_type': 'customer',
+                'response': "Customer insights ready! This shows our top customers by total purchases, along with their contact info and registration dates."
+            }),
+            
+            # 9. SALES & REVENUE ANALYSIS
+            (r'\b(sales|revenue|income|earnings|profit|money|cash)\b', {
+                'sql': 'SELECT product_name, quantity, price, date, region FROM sales_data ORDER BY date DESC',
+                'data_type': 'sales',
+                'response': "Here's your sales data! I've pulled the latest product sales information including quantities, prices, dates, and regions."
+            }),
+            
+            # 10. PRODUCT INVENTORY (least specific - check last)
+            (r'\b(product|item|goods|inventory|stock|what|show|list)\b', {
+                'sql': 'SELECT product_name, category, price, stock_quantity FROM product_data ORDER BY price DESC',
+                'data_type': 'product',
+                'response': "Product inventory loaded! Here's our complete product catalog with categories, prices, and current stock levels."
+            })
+        ]
     
     def _connect_to_db(self):
         """Connect to the regression database (mock for demo)"""
@@ -111,22 +148,34 @@ class SQLAgent:
             print(f"Error getting schema info: {e}")
             return "Error retrieving schema information"
     
-    def generate_sql_query(self, user_query: str) -> str:
-        """Generate SQL query from user query using rule-based patterns"""
+    def generate_sql_query(self, user_query: str) -> Dict[str, str]:
+        """Generate SQL query and response from user query using rule-based patterns"""
         try:
             user_query_lower = user_query.lower()
             
             # Check patterns in order of specificity
-            for pattern, response in self.patterns.items():
+            for pattern, response in self.patterns:
                 if re.search(pattern, user_query_lower):
-                    return response['sql']
+                    return {
+                        'sql': response['sql'],
+                        'response': response['response'],
+                        'data_type': response['data_type']
+                    }
             
             # Default query if no pattern matches
-            return "SELECT 'No specific pattern matched' as message, COUNT(*) as total_records FROM sales_data"
+            return {
+                'sql': "SELECT 'No specific pattern matched' as message, COUNT(*) as total_records FROM sales_data",
+                'response': "I couldn't find a specific pattern for your query, but here's a general overview of our data.",
+                'data_type': 'default'
+            }
             
         except Exception as e:
             print(f"Error generating SQL query: {e}")
-            return "SELECT 1 as error;"
+            return {
+                'sql': "SELECT 1 as error;",
+                'response': "Sorry, I encountered an error processing your request. Please try a different query.",
+                'data_type': 'error'
+            }
     
     def execute_query(self, sql_query: str) -> Dict[str, Any]:
         """Execute SQL query and return results (mock for demo)"""
@@ -265,6 +314,29 @@ class SQLAgent:
                 "row_count": 4
             }
         
+        # Financial summary
+        elif "total_revenue" in sql_lower and "total_transactions" in sql_lower:
+            return {
+                "success": True,
+                "data": [
+                    {"total_revenue": 67499.45, "total_transactions": 485, "average_price": 139.18},
+                ],
+                "columns": ["total_revenue", "total_transactions", "average_price"],
+                "row_count": 1
+            }
+        
+        # Category analysis
+        elif "category" in sql_lower and "product_count" in sql_lower:
+            return {
+                "success": True,
+                "data": [
+                    {"category": "Accessories", "product_count": 4, "avg_price": 79.99, "total_stock": 440},
+                    {"category": "Electronics", "product_count": 2, "avg_price": 949.99, "total_stock": 70},
+                ],
+                "columns": ["category", "product_count", "avg_price", "total_stock"],
+                "row_count": 2
+            }
+        
         # Default fallback
         else:
             return {
@@ -279,14 +351,16 @@ class SQLAgent:
     
     def process_query(self, user_query: str) -> Dict[str, Any]:
         """Main method to process user query and return results"""
-        # Generate SQL query
-        sql_query = self.generate_sql_query(user_query)
+        # Generate SQL query and response
+        query_info = self.generate_sql_query(user_query)
         
         # Execute query
-        result = self.execute_query(sql_query)
+        result = self.execute_query(query_info['sql'])
         
         return {
-            "sql_query": sql_query,
+            "sql_query": query_info['sql'],
+            "response": query_info['response'],
+            "data_type": query_info['data_type'],
             "result": result,
             "user_query": user_query
         } 

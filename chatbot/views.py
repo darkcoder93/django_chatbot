@@ -47,7 +47,7 @@ def chat_api(request):
         result = agent.process_query(message)
         
         # Save assistant response
-        assistant_message = f"I've generated a SQL query for your request: {result['sql_query']}"
+        assistant_message = result.get('response', f"I've generated a SQL query for your request: {result['sql_query']}")
         if result['result']['success']:
             assistant_message += f"\n\nFound {result['result']['row_count']} rows of data."
         else:
@@ -69,6 +69,8 @@ def chat_api(request):
         response_data = {
             'message': assistant_message,
             'sql_query': result['sql_query'],
+            'response': result.get('response', ''),
+            'data_type': result.get('data_type', ''),
             'result_data': result['result'],
             'session_id': session_id
         }
