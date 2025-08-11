@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SQL Chatbot</title>
+    <title>SQL Chatbot - Frontend Demo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -16,20 +16,48 @@
             height: 100vh;
             display: flex;
             overflow: hidden;
+            position: relative;
         }
         
         .chat-section {
-            width: 50%;
+            min-width: 300px;
             background: white;
             border-right: 2px solid #e9ecef;
             display: flex;
             flex-direction: column;
+            flex: 1 1 50%;
         }
         
         .results-section {
-            width: 50%;
+            min-width: 300px;
+            background: white;
             display: flex;
             flex-direction: column;
+            flex: 1 1 50%;
+        }
+        
+        .resize-handle {
+            width: 8px;
+            background: #6c757d;
+            cursor: col-resize;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+        
+        .resize-handle:hover {
+            background: #007bff;
+        }
+        
+        .resize-handle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 20px;
+            background: white;
+            border-radius: 1px;
         }
         
         .sql-preview {
@@ -161,11 +189,6 @@
             padding: 20px;
         }
         
-        .spinner-border-sm {
-            width: 1rem;
-            height: 1rem;
-        }
-        
         .empty-state {
             text-align: center;
             color: #6c757d;
@@ -177,62 +200,102 @@
             margin-bottom: 15px;
         }
         
-        .example-queries {
-            text-align: left;
-            margin-top: 20px;
+
+        
+        .session-info {
+            background: #28a745;
+            color: white;
+            padding: 8px 15px;
+            font-size: 0.8rem;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
         }
         
-        .query-example {
+        /* Markdown styling */
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .markdown-content p {
+            margin-bottom: 0.5rem;
+        }
+        
+        .markdown-content code {
+            background: #f1f3f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .markdown-content pre {
             background: #f8f9fa;
-            border-left: 3px solid #007bff;
-            padding: 8px 12px;
-            margin: 8px 0;
-            border-radius: 4px;
-            font-size: 0.9rem;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
         }
         
-        .query-example strong {
-            color: #007bff;
+        .markdown-content ul, .markdown-content ol {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 3px solid #007bff;
+            padding-left: 10px;
+            margin: 0.5rem 0;
+            color: #6c757d;
+        }
+        
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+        
+        .message.assistant {
+            justify-content: flex-start;
+            position: relative;
+        }
+        
+        .response-time {
+            position: absolute;
+            bottom: -15px;
+            left: 16px;
+            font-size: 0.7rem;
+            color: #6c757d;
+            font-style: italic;
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
     <div class="main-container">
         <!-- Left Half - Chat Section -->
-        <div class="chat-section">
+        <div class="chat-section" id="chatSection">
             <div class="chat-header">
                 <i class="fas fa-robot me-2"></i>
-                SQL Chatbot
+                SQL Chatbot - Frontend Demo
+            </div>
+            
+            <div class="session-info" id="sessionInfo">
+                <i class="fas fa-info-circle me-1"></i>
+                Session ID: <span id="sessionId">{{ session_id }}</span>
             </div>
             
             <div class="chat-messages" id="chatMessages">
                 <div class="empty-state">
                     <i class="fas fa-comments"></i>
                     <h5>Welcome to SQL Chatbot!</h5>
-                    <p>I'm a rule-based chatbot that can help you analyze business data! Try these example queries:</p>
-                    <div class="example-queries">
-                        <div class="query-example">
-                            <strong>💰 Sales & Revenue:</strong> "Show me sales data" or "What's our revenue?"
-                        </div>
-                        <div class="query-example">
-                            <strong>👥 Customers:</strong> "Who are our top customers?" or "Show customer insights"
-                        </div>
-                        <div class="query-example">
-                            <strong>📦 Products:</strong> "List all products" or "Show inventory"
-                        </div>
-                        <div class="query-example">
-                            <strong>📊 Analytics:</strong> "What are our best performing products?" or "Show regional analysis"
-                        </div>
-                        <div class="query-example">
-                            <strong>⚠️ Alerts:</strong> "What products are low in stock?" or "Show inventory alerts"
-                        </div>
-                    </div>
+                    <p>Type your message below to start chatting with the AI assistant.</p>
                 </div>
             </div>
             
             <div class="chat-input">
                 <div class="input-group">
-                    <input type="text" class="form-control" id="messageInput" placeholder="Ask a question about your data..." maxlength="1000">
+                    <input type="text" class="form-control" id="messageInput" placeholder="Type your message here..." maxlength="1000">
                     <button class="btn btn-primary" type="button" id="sendButton">
                         <i class="fas fa-paper-plane"></i>
                     </button>
@@ -240,8 +303,11 @@
             </div>
         </div>
         
+        <!-- Resize Handle -->
+        <div class="resize-handle" id="resizeHandle"></div>
+        
         <!-- Right Half - Results Section -->
-        <div class="results-section">
+        <div class="results-section" id="resultsSection">
             <!-- Upper Half - SQL Preview -->
             <div class="sql-preview">
                 <div class="section-header">
@@ -289,6 +355,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         let currentSessionId = null;
         let currentData = null;
@@ -298,6 +365,12 @@
         document.addEventListener('DOMContentLoaded', function() {
             const messageInput = document.getElementById('messageInput');
             const sendButton = document.getElementById('sendButton');
+            
+            // Get session ID from backend
+            currentSessionId = document.getElementById('sessionId').textContent;
+            
+            // Initialize resizable panes
+            initializeResizablePanes();
             
             // Send message on Enter key
             messageInput.addEventListener('keypress', function(e) {
@@ -312,6 +385,8 @@
             // Focus on input
             messageInput.focus();
         });
+
+
 
         function sendMessage() {
             const messageInput = document.getElementById('messageInput');
@@ -328,61 +403,63 @@
             // Show loading
             showLoading(true);
             
-            // Prepare request data
-            const requestData = {
-                message: message,
-                session_id: currentSessionId
-            };
+            // Record start time
+            const startTime = performance.now();
             
-            // Debug logging
-            console.log('Sending request data:', requestData);
-            console.log('CSRF Token:', getCookie('csrftoken'));
-            
-            // Send to API
+            // Call backend API
             fetch('/api/chat/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
                 },
-                body: JSON.stringify(requestData)
+                body: JSON.stringify({
+                    message: message,
+                    session_id: currentSessionId
+                })
             })
-            .then(response => {
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-                
-                if (!response.ok) {
-                    return response.json().then(errorData => {
-                        throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
-                    });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 showLoading(false);
-                console.log('Response data:', data);
                 
-                if (data.session_id) {
-                    currentSessionId = data.session_id;
-                }
+                // Calculate response time
+                const endTime = performance.now();
+                const responseTime = Math.round(endTime - startTime);
                 
-                // Add assistant message
-                addMessage('assistant', data.message);
+                // Add assistant message with markdown support and response time
+                addMessage('assistant', data.summary, true, responseTime);
                 
                 // Update SQL preview
-                updateSqlPreview(data.sql_query);
+                updateSqlPreview(data["SQL Query"]);
                 
-                // Update data table
-                updateDataTable(data.result_data);
+                // Update data table with new format
+                updateDataTable({
+                    success: true,
+                    data: data["Query Result"].map(row => {
+                        const obj = {};
+                        data["Output columns"].forEach((col, index) => {
+                            obj[col] = row[index];
+                        });
+                        return obj;
+                    }),
+                    columns: data["Output columns"],
+                    row_count: data["Query Result"].length
+                });
             })
             .catch(error => {
                 showLoading(false);
                 console.error('Error:', error);
-                addMessage('assistant', `Error: ${error.message}`);
+                
+                // Fallback to error message
+                addMessage('assistant', 'Sorry, there was an error processing your request. Please try again.', false, 0);
             });
         }
 
-        function addMessage(type, content) {
+
+
+            
+
+
+        function addMessage(type, content, isMarkdown = false, responseTime = null) {
             const chatMessages = document.getElementById('chatMessages');
             
             // Remove empty state if it exists
@@ -396,9 +473,32 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.textContent = content;
+            
+            if (isMarkdown) {
+                contentDiv.className += ' markdown-content';
+                contentDiv.innerHTML = marked.parse(content);
+            } else {
+                contentDiv.textContent = content;
+            }
             
             messageDiv.appendChild(contentDiv);
+            
+            // Add response time for assistant messages
+            if (type === 'assistant' && responseTime !== null) {
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'response-time';
+                const responseTimeSeconds = (responseTime / 1000).toFixed(2);
+                
+                // Check if response time is greater than 45 seconds
+                if (responseTime > 45000) {
+                    timeDiv.textContent = 'The query took a while to respond';
+                } else {
+                    timeDiv.textContent = `Response time: ${responseTimeSeconds}s`;
+                }
+                
+                messageDiv.appendChild(timeDiv);
+            }
+            
             chatMessages.appendChild(messageDiv);
             
             // Scroll to bottom
@@ -478,38 +578,26 @@
                 return;
             }
             
-            fetch('/api/download/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    data: currentData,
-                    columns: currentColumns,
-                    format: format
-                })
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.blob();
-                }
-                throw new Error('Download failed');
-            })
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `data.${format === 'excel' ? 'xlsx' : 'csv'}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            })
-            .catch(error => {
-                console.error('Download error:', error);
-                alert('Download failed');
+            // Create CSV content
+            let csvContent = currentColumns.join(',') + '\n';
+            currentData.forEach(row => {
+                const values = currentColumns.map(col => {
+                    const value = row[col];
+                    return typeof value === 'string' ? `"${value}"` : value;
+                });
+                csvContent += values.join(',') + '\n';
             });
+            
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `data.${format === 'excel' ? 'csv' : 'csv'}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
         }
 
         function showLoading(show) {
@@ -522,20 +610,76 @@
             div.textContent = text;
             return div.innerHTML;
         }
-
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
+        
+        function initializeResizablePanes() {
+            const chatSection = document.getElementById('chatSection');
+            const resultsSection = document.getElementById('resultsSection');
+            const resizeHandle = document.getElementById('resizeHandle');
+            
+            let isResizing = false;
+            let startX;
+            let startChatWidth;
+            let startResultsWidth;
+            
+            // Set initial flex values
+            chatSection.style.flex = '1 1 50%';
+            resultsSection.style.flex = '1 1 50%';
+            
+            resizeHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                startChatWidth = chatSection.offsetWidth;
+                startResultsWidth = resultsSection.offsetWidth;
+                
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                const deltaX = e.clientX - startX;
+                const containerWidth = chatSection.parentElement.offsetWidth;
+                
+                // Calculate new widths
+                let newChatWidth = startChatWidth + deltaX;
+                let newResultsWidth = startResultsWidth - deltaX;
+                
+                // Apply constraints
+                const minWidth = 300;
+                const maxChatWidth = containerWidth * 0.7;
+                
+                if (newChatWidth < minWidth) {
+                    newChatWidth = minWidth;
+                    newResultsWidth = containerWidth - minWidth;
+                } else if (newChatWidth > maxChatWidth) {
+                    newChatWidth = maxChatWidth;
+                    newResultsWidth = containerWidth - maxChatWidth;
                 }
-            }
-            return cookieValue;
+                
+                // Update flex values for smooth resizing
+                const chatPercentage = (newChatWidth / containerWidth) * 100;
+                const resultsPercentage = (newResultsWidth / containerWidth) * 100;
+                
+                chatSection.style.flex = `0 0 ${chatPercentage}%`;
+                resultsSection.style.flex = `0 0 ${resultsPercentage}%`;
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            });
+            
+            // Double-click to reset to 50/50
+            resizeHandle.addEventListener('dblclick', function() {
+                chatSection.style.flex = '1 1 50%';
+                resultsSection.style.flex = '1 1 50%';
+            });
         }
     </script>
 </body>

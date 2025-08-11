@@ -1,209 +1,56 @@
-import uuid
-import json
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from .models import ChatSession, ChatMessage, QueryResult
-from .serializers import ChatRequestSerializer, ChatResponseSerializer
-from .llm_agent import SQLAgent
-import pandas as pd
-from io import BytesIO
-import base64
+from datetime import datetime, timezone
+import json
 
 
 def chat_interface(request):
-    """Main chat interface view"""
-    return render(request, 'chatbot/chat.html')
+    """Main chat interface view for frontend demo"""
+    # Generate session ID in the format: ddMMyyHHmmss.ffffff
+    now = datetime.now(timezone.utc)
+    session_id = now.strftime("%d%m%y%H%M%S.%f")
+    
+    context = {
+        'session_id': session_id
+    }
+    return render(request, 'chatbot/chat.html', context)
 
 
-@api_view(['POST'])
 @csrf_exempt
+@require_http_methods(["POST"])
 def chat_api(request):
-    """API endpoint for chat interactions"""
-    # Debug logging
-    print(f"Request method: {request.method}")
-    print(f"Request data: {request.data}")
-    print(f"Request headers: {request.headers}")
-    
-    # Check if request has data
-    if not request.data:
-        return Response({
-            'error': 'No data provided',
-            'detail': 'Request body is empty'
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    serializer = ChatRequestSerializer(data=request.data)
-    
-    # Debug serializer validation
-    if not serializer.is_valid():
-        print(f"Serializer errors: {serializer.errors}")
-        return Response({
-            'error': 'Validation failed',
-            'detail': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
+    """API endpoint for chat interactions - always returns same example response in LLM agent format"""
     try:
-        message = serializer.validated_data['message']
-        session_id = serializer.validated_data.get('session_id')
+        # Parse JSON data
+        data = json.loads(request.body)
+        user_message = data.get('message', '')
+        session_id = data.get('session_id', '')
         
-        print(f"Processing message: {message}")
-        print(f"Session ID: {session_id}")
-        
-        # Create or get session
-        if not session_id:
-            session_id = str(uuid.uuid4())
-        
-        session, created = ChatSession.objects.get_or_create(session_id=session_id)
-        
-        # Save user message
-        ChatMessage.objects.create(
-            session=session,
-            message_type='user',
-            content=message
-        )
-        
-        # Process with LLM agent
-        agent = SQLAgent()
-        result = agent.process_query(message)
-        
-        # Save assistant response
-        assistant_message = result.get('response', f"I've generated a SQL query for your request: {result['sql_query']}")
-        if result['result']['success']:
-            assistant_message += f"\n\nFound {result['result']['row_count']} rows of data."
-        else:
-            assistant_message += f"\n\nError: {result['result']['error']}"
-        
-        ChatMessage.objects.create(
-            session=session,
-            message_type='assistant',
-            content=assistant_message
-        )
-        
-        # Save query result
-        QueryResult.objects.create(
-            session=session,
-            sql_query=result['sql_query'],
-            result_data=result['result']
-        )
-        
-        response_data = {
-            'message': assistant_message,
-            'sql_query': result['sql_query'],
-            'response': result.get('response', ''),
-            'data_type': result.get('data_type', ''),
-            'result_data': result['result'],
-            'session_id': session_id
+        # Always return the same example response in LLM agent format
+        example_response = {
+            "SQL Query": "SELECT product_name, quantity, price, date, region FROM sales_data ORDER BY date DESC LIMIT 5",
+            "Output columns": [
+                "product_name",
+                "quantity", 
+                "price",
+                "date",
+                "region"
+            ],
+            "Query Result": [
+                ["Gaming Laptop", 25, 1299.99, "2024-01-15", "North"],
+                ["Wireless Mouse", 150, 39.99, "2024-01-16", "South"],
+                ["Mechanical Keyboard", 80, 149.99, "2024-01-17", "East"],
+                ["4K Monitor", 30, 599.99, "2024-01-18", "West"],
+                ["USB-C Hub", 200, 49.99, "2024-01-19", "North"]
+            ],
+            "summary": "# Sales Data Analysis 📊\n\nHere's your **sales data**! I've pulled the latest product sales information.\n\n## Summary:\n- **Total Sales**: $45,000\n- **Products Sold**: 5\n- **Date Range**: Jan 15-19, 2024\n\n## Key Insights:\n1. **Gaming Laptop** is the highest revenue generator\n2. **Wireless Mouse** has the highest volume\n3. **North Region** shows strong performance\n\n*Data retrieved successfully from sales_data table*"
         }
         
-        print(f"Successfully processed request. Response: {response_data}")
-        return Response(response_data, status=status.HTTP_200_OK)
+        return JsonResponse(example_response, status=200)
         
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        print(f"Error processing chat request: {str(e)}")
-        return Response({
-            'error': 'Internal server error',
-            'detail': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-def get_chat_history(request, session_id):
-    """Get chat history for a session"""
-    try:
-        session = ChatSession.objects.get(session_id=session_id)
-        messages = session.messages.all()
-        
-        history = []
-        for message in messages:
-            history.append({
-                'type': message.message_type,
-                'content': message.content,
-                'timestamp': message.timestamp.isoformat()
-            })
-        
-        return Response({'history': history}, status=status.HTTP_200_OK)
-    except ChatSession.DoesNotExist:
-        return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view(['GET'])
-def get_query_results(request, session_id):
-    """Get query results for a session"""
-    try:
-        session = ChatSession.objects.get(session_id=session_id)
-        results = session.query_results.all()
-        
-        query_results = []
-        for result in results:
-            query_results.append({
-                'sql_query': result.sql_query,
-                'result_data': result.result_data,
-                'created_at': result.created_at.isoformat()
-            })
-        
-        return Response({'query_results': query_results}, status=status.HTTP_200_OK)
-    except ChatSession.DoesNotExist:
-        return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view(['POST'])
-def download_data(request):
-    """Download data in Excel or CSV format"""
-    try:
-        data = request.data.get('data', [])
-        columns = request.data.get('columns', [])
-        format_type = request.data.get('format', 'csv')
-        
-        if not data or not columns:
-            return Response({'error': 'No data provided'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Create DataFrame
-        df = pd.DataFrame(data, columns=columns)
-        
-        if format_type.lower() == 'excel':
-            # Create Excel file
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, sheet_name='Data', index=False)
-            output.seek(0)
-            
-            response = HttpResponse(
-                output.getvalue(),
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-            response['Content-Disposition'] = 'attachment; filename="data.xlsx"'
-            
-        else:
-            # Create CSV file
-            output = BytesIO()
-            df.to_csv(output, index=False)
-            output.seek(0)
-            
-            response = HttpResponse(output.getvalue(), content_type='text/csv')
-            response['Content-Disposition'] = 'attachment; filename="data.csv"'
-        
-        return response
-        
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-def health_check(request):
-    """Health check endpoint"""
-    return Response({'status': 'healthy'}, status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-def test_chat_api(request):
-    """Test endpoint for debugging chat API"""
-    return Response({
-        'message': 'Test successful',
-        'request_data': request.data,
-        'request_method': request.method,
-        'request_headers': dict(request.headers)
-    }, status=status.HTTP_200_OK) 
+        return JsonResponse({'error': str(e)}, status=500) 
